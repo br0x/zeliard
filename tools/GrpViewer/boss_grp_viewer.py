@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 import sys
 import os
+import json
 import tkinter as tk
-from tkinter import filedialog
+from tkinter import filedialog, messagebox
+from PIL import Image, ImageTk
 
 DEBUG_DRAW = False
 
@@ -49,6 +51,14 @@ SCALE = 3
 CANVAS_BG = "#0f0f1a"
 FG_COLOR = "#e0e0ff"
 BG_COLOR = "#1a1a2e"
+
+BRICK_NATIVE = 16
+POSE_IMAGE_SCALE = 3
+SPRITESHEET_SCALE = 3
+SPRITESHEET_COLS = 16
+CAND_THUMB = 40
+CHOSEN_COLOR = "#ffffff"
+AVG_SELECTED_COLOR = "#89b4fa"
 
 
 # pal_decode_tbl has 6 entries (hero_tile_col_idx cycles 0–5);
@@ -1421,11 +1431,69 @@ class BrickRegistry:
 def draw_brick(canvas, frame_data, tiles_raw, x, y, scale, registry, show_tiles=False):
     """Draw a composed 16x16 brick (2x2 tiles) and register it for the ID map."""
     brick_id = registry.add(frame_data)
+    canvas.brick_registry = registry
+    canvas.brick_tiles_raw = tiles_raw
+
+    pose = getattr(canvas, "current_pose", None)
+    if pose is not None:
+        gx = int(round((x - pose["x_base"]) / pose["scale"]))
+        gy = int(round((y - pose["y_base"]) / pose["scale"]))
+        pose["items"].append((gx, gy, brick_id))
+
     draw_composed_16x16_frame(
         canvas, frame_data, tiles_raw, x, y, scale,
         brick_id=brick_id, show_tiles=show_tiles
     )
     return brick_id
+
+
+def begin_pose(canvas, x_base, y_base, scale, label):
+    canvas.current_pose = {
+        "x_base": x_base,
+        "y_base": y_base,
+        "scale": scale,
+        "label": label,
+        "items": [],
+    }
+
+
+def end_pose(canvas):
+    pose = getattr(canvas, "current_pose", None)
+    canvas.current_pose = None
+    if not pose or not pose["items"]:
+        return
+
+    native_w = int(max(gx for gx, _, _ in pose["items"])) + BRICK_NATIVE
+    native_h = int(max(gy for _, gy, _ in pose["items"])) + BRICK_NATIVE
+    scale = pose["scale"]
+
+    canvas.brick_pose_regions.append({
+        "x0": pose["x_base"],
+        "y0": pose["y_base"],
+        "x1": pose["x_base"] + native_w * scale,
+        "y1": pose["y_base"] + native_h * scale,
+        "native_w": native_w,
+        "native_h": native_h,
+        "scale": scale,
+        "label": pose["label"],
+        "cells": list(pose["items"]),
+    })
+
+
+def _selected_candidate(canvas, brick_id):
+    if brick_id is None:
+        return None
+    selections = getattr(canvas, "brick_selections", None)
+    candidates = getattr(canvas, "brick_candidates", None)
+    if not selections or not candidates:
+        return None
+    idx = selections.get(brick_id)
+    if idx is None:
+        return None
+    cands = candidates.get(brick_id)
+    if not cands or idx < 0 or idx >= len(cands):
+        return None
+    return cands[idx]
 
 
 def render_brick_browser(canvas, registry, tiles_raw, y_offset, scale=3):
@@ -1453,7 +1521,7 @@ def render_brick_browser(canvas, registry, tiles_raw, y_offset, scale=3):
         )
         draw_composed_16x16_frame(
             canvas, frame_data, tiles_raw,
-            x_frame, y_frame, scale
+            x_frame, y_frame, scale, brick_id=brick_id
         )
 
     num_rows = (len(registry) + frames_per_row - 1) // frames_per_row
@@ -1492,21 +1560,29 @@ def draw_composed_16x16_frame(
     around the brick and prints the brick ID in its top-left corner.
     """
     TILE_SIZE = 32
-    pal_idx = frame_data[0]
-    tile_indices = frame_data[1:]  # [tl, tr, bl, br]
-    lut = PAL_DECODE_TABLES[pal_idx]
+    candidate = _selected_candidate(canvas, brick_id)
 
-    for i, t_idx in enumerate(tile_indices):
-        if t_idx == 0:
-            continue
-        # Slice the 32-byte raw data for the 8x8 tile
-        tile_data = tiles_raw[t_idx * TILE_SIZE : (t_idx + 1) * TILE_SIZE]
-        pixels = decode_fman_tile(tile_data, lut)
+    if candidate is not None:
+        size = int(round(BRICK_NATIVE * scale))
+        photo = ImageTk.PhotoImage(candidate.resize((size, size), Image.Resampling.NEAREST))
+        canvas.brick_photo_refs.append(photo)
+        canvas.create_image(x_frame, y_frame, image=photo, anchor="nw")
+    else:
+        pal_idx = frame_data[0]
+        tile_indices = frame_data[1:]  # [tl, tr, bl, br]
+        lut = PAL_DECODE_TABLES[pal_idx]
 
-        # Calculate sub-tile position within the 16x16 block
-        col_offset = (i % 2) * 8 * scale
-        row_offset = (i // 2) * 8 * scale
-        draw_tile_pixels(canvas, pixels, x_frame + col_offset, y_frame + row_offset, scale=scale)
+        for i, t_idx in enumerate(tile_indices):
+            if t_idx == 0:
+                continue
+            # Slice the 32-byte raw data for the 8x8 tile
+            tile_data = tiles_raw[t_idx * TILE_SIZE : (t_idx + 1) * TILE_SIZE]
+            pixels = decode_fman_tile(tile_data, lut)
+
+            # Calculate sub-tile position within the 16x16 block
+            col_offset = (i % 2) * 8 * scale
+            row_offset = (i // 2) * 8 * scale
+            draw_tile_pixels(canvas, pixels, x_frame + col_offset, y_frame + row_offset, scale=scale)
 
     if show_tiles:
         canvas.create_rectangle(
@@ -1522,11 +1598,47 @@ def draw_composed_16x16_frame(
             )
 
 
+def _hex_to_rgb(hex_str):
+    return int(hex_str[1:3], 16), int(hex_str[3:5], 16), int(hex_str[5:7], 16)
+
+
+def brick_frame_to_pil(frame_data, tiles_raw, scale=SPRITESHEET_SCALE):
+    TILE_SIZE = 32
+    pal_idx = frame_data[0]
+    lut = PAL_DECODE_TABLES[pal_idx]
+    size = BRICK_NATIVE * scale
+    buf = bytearray(size * size * 4)
+
+    for i, t_idx in enumerate(frame_data[1:]):
+        if t_idx == 0:
+            continue
+        tile_data = tiles_raw[t_idx * TILE_SIZE : (t_idx + 1) * TILE_SIZE]
+        pixels = decode_fman_tile(tile_data, lut)
+        col_offset = (i % 2) * 8
+        row_offset = (i // 2) * 8
+
+        for pi, p_idx in enumerate(pixels):
+            if p_idx is None:
+                continue
+            r, g, b = _hex_to_rgb(PALETTE_STRS[p_idx])
+            rx = (col_offset + pi % 8) * scale
+            ry = (row_offset + pi // 8) * scale
+            for dy in range(scale):
+                for dx in range(scale):
+                    off = ((ry + dy) * size + (rx + dx)) * 4
+                    buf[off] = r
+                    buf[off + 1] = g
+                    buf[off + 2] = b
+                    buf[off + 3] = 255
+
+    return Image.frombytes("RGBA", (size, size), bytes(buf))
+
+
 def render_crab_group(data, canvas, y_offset, show_tiles=False):
     TILE_SIZE = 32
     scale = 3
     current_y = y_offset
-    gap_x, gap_y = 25, 35
+    gap_x, gap_y = 12, 12
 
     # Header size in crab.grp is 0; tiles start immediately after the descriptors
     tiles_raw = data + b'\x00' * (256 * TILE_SIZE)
@@ -1562,12 +1674,14 @@ def render_crab_group(data, canvas, y_offset, show_tiles=False):
         canvas.create_rectangle(x_base-1, y_base-1, x_base + 5*16*scale, y_base + 3*16*scale, outline="gray")
 
         layout = body_layout08 if phase < 9 else body_layout9
+        begin_pose(canvas, x_base, y_base, scale, f"crab phase {phase}")
         for name, gx, gy in layout:
             draw_brick(
                 canvas, CRAB_FRAMES[name][phase], tiles_raw,
                 x_base + gx*scale, y_base + gy*scale,
                 scale, registry, show_tiles
             )
+        end_pose(canvas)
 
     # Advance y_cursor past all 4 rows of body phases (10 phases / 3 per row)
     num_body_rows = (10 + frames_per_row - 1) // frames_per_row
@@ -1696,7 +1810,7 @@ def render_drgn_group(data, canvas, y_offset, show_tiles=False):
     frames_per_row_body = 4
     body_gap_x, body_gap_y = 12, 18
 
-    for f_idx, (_, pose, anim_phase, motion_phase, breath_frame) in enumerate(DRGN_BODY_FRAMES):
+    for f_idx, (frame_label, pose, anim_phase, motion_phase, breath_frame) in enumerate(DRGN_BODY_FRAMES):
         col_idx = f_idx % frames_per_row_body
         row_idx = f_idx // frames_per_row_body
         x_base = 10 + col_idx * (block_w + body_gap_x)
@@ -1709,6 +1823,7 @@ def render_drgn_group(data, canvas, y_offset, show_tiles=False):
         if breath_frame is not None:
             placements += compute_drgn_breath_layout(pose, breath_frame)
 
+        begin_pose(canvas, x_base, y_base, body_scale, f"dragon {frame_label}")
         for gcol, grow, tile_group, frame_idx in placements:
             set_name = DRGN_FRAME_SET_BY_INDEX.get(tile_group)
             if set_name is None:
@@ -1722,6 +1837,7 @@ def render_drgn_group(data, canvas, y_offset, show_tiles=False):
                 y_base + grow * step * body_scale,
                 body_scale, registry, show_tiles
             )
+        end_pose(canvas)
 
     num_body_rows = (len(DRGN_BODY_FRAMES) + frames_per_row_body - 1) // frames_per_row_body
     current_y += num_body_rows * (block_h + body_gap_y) + 24
@@ -1810,6 +1926,7 @@ def render_tako_group(data, canvas, y_offset, show_tiles=False):
 
         canvas.create_rectangle(x_base - 1, y_base - 1, x_base + block_w, y_base + block_h, outline="gray")
 
+        begin_pose(canvas, x_base, y_base, body_scale, f"tako tentacle {table_idx}")
         for gcol, grow, tile_group, anim_idx in compute_tako_phase_layout(table_idx):
             set_name = TAKO_FRAME_SET_BY_INDEX.get(tile_group)
             if set_name is None:
@@ -1821,6 +1938,7 @@ def render_tako_group(data, canvas, y_offset, show_tiles=False):
                        x_base + gcol * 16 * body_scale,
                        y_base + grow * 16 * body_scale,
                        body_scale, registry, show_tiles)
+        end_pose(canvas)
 
     num_body_rows = (32 + phases_per_row - 1) // phases_per_row
     current_y += num_body_rows * (block_h + body_gap_y) + 24
@@ -1952,7 +2070,7 @@ def render_tori_group(data, canvas, y_offset, show_tiles=False):
     frames_per_row_body = 5
     body_gap_x, body_gap_y = 12, 16
 
-    for f_idx, (_, pose_indices) in enumerate(TORI_BODY_FRAMES):
+    for f_idx, (frame_label, pose_indices) in enumerate(TORI_BODY_FRAMES):
         col_idx = f_idx % frames_per_row_body
         row_idx = f_idx // frames_per_row_body
         x_base = 10 + col_idx * (block_w + body_gap_x)
@@ -1960,6 +2078,7 @@ def render_tori_group(data, canvas, y_offset, show_tiles=False):
 
         canvas.create_rectangle(x_base - 1, y_base - 1, x_base + block_w, y_base + block_h, outline="gray")
 
+        begin_pose(canvas, x_base, y_base, body_scale, f"tori {frame_label}")
         for gcol, grow, table_index, row_index in compose_tori_frame(pose_indices):
             set_name = TORI_FRAME_SET_BY_INDEX.get(table_index)
             if set_name is None:
@@ -1971,6 +2090,7 @@ def render_tori_group(data, canvas, y_offset, show_tiles=False):
                        x_base + gcol * step * body_scale,
                        y_base + grow * step * body_scale,
                        body_scale, registry, show_tiles)
+        end_pose(canvas)
 
     num_body_rows = (len(TORI_BODY_FRAMES) + frames_per_row_body - 1) // frames_per_row_body
     current_y += num_body_rows * (block_h + body_gap_y) + 24
@@ -2207,7 +2327,7 @@ def compute_zela_body_layout(anim_phase):
     return placements
 
 
-def render_zela_group(data, canvas, y_offset, layout, show_tiles=False):
+def render_zela_group(data, canvas, y_offset, layout, show_tiles=False, label="zela"):
     """
     Render zela.grp sprites (Agar/Zela boss).
 
@@ -2249,6 +2369,7 @@ def render_zela_group(data, canvas, y_offset, layout, show_tiles=False):
 
         canvas.create_rectangle(x_base - 1, y_base - 1, x_base + block_w, y_base + block_h, outline="gray")
 
+        begin_pose(canvas, x_base, y_base, scale, f"{label} phase {phase}")
         for gcol, grow, tile_group, frame_idx in compute_zela_body_layout(phase):
             set_name = ZELA_FRAME_SET_BY_INDEX.get(tile_group)
             if set_name is None:
@@ -2260,6 +2381,7 @@ def render_zela_group(data, canvas, y_offset, layout, show_tiles=False):
                        x_base + gcol * 16 * scale,
                        y_base + grow * 16 * scale,
                        scale, registry, show_tiles)
+        end_pose(canvas)
 
     num_body_rows = (8 + phases_per_row - 1) // phases_per_row
     current_y += num_body_rows * (block_h + body_gap_y) + 24
@@ -2519,7 +2641,7 @@ def render_meda_group(data, canvas, y_offset, show_tiles=False):
         ("wing flap 4 (center)", 2, 4),
     ]
 
-    for f_idx, (_, dz, wf) in enumerate(poses_to_render):
+    for f_idx, (frame_label, dz, wf) in enumerate(poses_to_render):
         col_idx = f_idx % phases_per_row
         row_idx = f_idx // phases_per_row
         x_base = 10 + col_idx * (block_w + body_gap_x)
@@ -2527,6 +2649,7 @@ def render_meda_group(data, canvas, y_offset, show_tiles=False):
 
         canvas.create_rectangle(x_base - 1, y_base - 1, x_base + block_w, y_base + block_h, outline="gray")
 
+        begin_pose(canvas, x_base, y_base, body_scale, f"meda {frame_label}")
         for gcol, grow, tile_group, anim_idx in compute_meda_body_layout(dz, wf):
             set_name = MEDA_FRAME_SET_BY_INDEX.get(tile_group)
             if set_name is None:
@@ -2538,6 +2661,7 @@ def render_meda_group(data, canvas, y_offset, show_tiles=False):
                        x_base + int(gcol * step * body_scale),
                        y_base + int(grow * step * body_scale),
                        body_scale, registry, show_tiles)
+        end_pose(canvas)
 
     num_body_rows = (len(poses_to_render) + phases_per_row - 1) // phases_per_row
     current_y += num_body_rows * (block_h + body_gap_y) + 24
@@ -2587,7 +2711,7 @@ def render_lega_group(data, canvas, y_offset, show_tiles=False):
     frames_per_row = 5
     body_gap_x, body_gap_y = 12, 16
 
-    for f_idx, (_, table_idx, head_anim) in enumerate(LEGA_BODY_FRAMES):
+    for f_idx, (frame_label, table_idx, head_anim) in enumerate(LEGA_BODY_FRAMES):
         col_idx = f_idx % frames_per_row
         row_idx = f_idx // frames_per_row
 
@@ -2602,6 +2726,7 @@ def render_lega_group(data, canvas, y_offset, show_tiles=False):
             outline="gray"
         )
 
+        begin_pose(canvas, x_base, y_base, body_scale, f"lega {frame_label}")
         for gcol, grow, tile_group, frame_idx in compute_lega_phase_layout(table_idx, head_anim):
             set_name = LEGA_FRAME_SET_BY_INDEX.get(tile_group)
             if set_name is None:
@@ -2621,6 +2746,7 @@ def render_lega_group(data, canvas, y_offset, show_tiles=False):
                 registry,
                 show_tiles
             )
+        end_pose(canvas)
 
     num_body_rows = (len(LEGA_BODY_FRAMES) + frames_per_row - 1) // frames_per_row
     current_y += num_body_rows * (block_h + body_gap_y) + 24
@@ -2936,6 +3062,7 @@ def render_akma_group(data, canvas, y_offset, show_tiles=False):
 
         canvas.create_rectangle(x_base - 1, y_base - 1, x_base + block_w, y_base + block_h, outline="gray")
 
+        begin_pose(canvas, x_base, y_base, body_scale, f"akma phase {phase} pose {pose_idx}")
         for gcol, grow, tile_group, anim_idx in compute_akma_body_layout(phase, pose_idx):
             set_name = AKMA_FRAME_SET_BY_INDEX.get(phase, {}).get(tile_group)
             if set_name is None:
@@ -2947,6 +3074,7 @@ def render_akma_group(data, canvas, y_offset, show_tiles=False):
                        x_base + gcol * GRID_STEP * body_scale,
                        y_base + grow * GRID_STEP * body_scale,
                        body_scale, registry, show_tiles)
+        end_pose(canvas)
 
     num_body_rows = (len(combos) + poses_per_row - 1) // poses_per_row
     current_y += num_body_rows * (block_h + body_gap_y) + 24
@@ -3164,6 +3292,7 @@ def render_mao1_group(data, canvas, y_offset, show_tiles=False):
         canvas.create_text(x_base + 4, y_base - 10, text=f"pose {pose_idx}",
                             anchor="nw", fill="white", font=("TkDefaultFont", 7))
 
+        begin_pose(canvas, x_base, y_base, body_scale, f"mao1 pose {pose_idx}")
         for gcol, grow, tile_group, anim_idx in compute_mao1_pose_layout(pose_idx):
             set_name = MAO1_FRAME_SET_BY_INDEX.get(tile_group)
             if set_name is None:
@@ -3175,6 +3304,7 @@ def render_mao1_group(data, canvas, y_offset, show_tiles=False):
                        x_base + gcol * GRID_STEP_X * body_scale,
                        y_base + grow * GRID_STEP_Y * body_scale,
                        body_scale, registry, show_tiles)
+        end_pose(canvas)
 
     num_body_rows = (11 + poses_per_row - 1) // poses_per_row
     current_y += num_body_rows * (block_h + body_gap_y) + 24
@@ -3410,6 +3540,7 @@ def render_mao2_group(data, canvas, y_offset, show_tiles=False):
             canvas.create_text(x_base + 3, y_base - 9, text=f"anim {pose_idx}",
                                anchor="w", fill="white", font=("TkDefaultFont", 7))
 
+            begin_pose(canvas, x_base, y_base, body_scale, f"mao2 {direction_name} anim {pose_idx}")
             for gcol, grow, tile_group, anim_idx in compute_mao2_pose_layout(pose_idx, direction):
                 set_name = MAO2_FRAME_SET_BY_DIRECTION[direction].get(tile_group)
                 if set_name is None:
@@ -3423,6 +3554,7 @@ def render_mao2_group(data, canvas, y_offset, show_tiles=False):
                     x_base + gcol * WORLD_TILE_PX * body_scale,
                     y_base + grow * WORLD_TILE_PX * body_scale,
                     body_scale, registry, show_tiles)
+            end_pose(canvas)
 
         num_rows = (14 + poses_per_row - 1) // poses_per_row
         current_y += num_rows * (block_h + body_gap_y) + 30
@@ -3442,8 +3574,18 @@ class GrpViewer:
         self.root = root
         self.root.title("Zeliard GRP Viewer")
         self.root.configure(bg=CANVAS_BG)
-        self.last_render = None
+        self.last_render: tuple[object, object, str, object] | None = None
+        self.current_grp_path: str | None = None
+        self.candidates = {}
+        self.selections = {}
+        self.avg_row: int | None = None
+        self.avg_group: set[int] = set()
+        self.dirty = False
+        self._cand_photo_refs = []
+        self.cand_canvas: tk.Canvas | None = None
+        self.cand_inner: tk.Frame | None = None
         self.setup_ui()
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
         if len(sys.argv) > 1:
             self.load_file(sys.argv[1])
@@ -3467,12 +3609,16 @@ class GrpViewer:
             activeforeground="white",
         ).pack(side=tk.LEFT, padx=8)
 
+        tk.Button(toolbar, text="Save spritesheet", command=self.save_spritesheet).pack(side=tk.LEFT, padx=8)
+
         self.info_label = tk.Label(toolbar, text="No file loaded", bg=CANVAS_BG, fg="#aaaacc", font=("Courier", 10))
         self.info_label.pack(side=tk.LEFT, padx=10)
 
-        # Scrollable Canvas
-        frame = tk.Frame(self.root, bg=CANVAS_BG)
-        frame.pack(fill=tk.BOTH, expand=True)
+        body = tk.Frame(self.root, bg=CANVAS_BG)
+        body.pack(fill=tk.BOTH, expand=True)
+
+        frame = tk.Frame(body, bg=CANVAS_BG)
+        frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         self.canvas = tk.Canvas(frame, bg=CANVAS_BG, highlightthickness=0)
         vbar = tk.Scrollbar(frame, orient=tk.VERTICAL, command=self.canvas.yview)
@@ -3484,6 +3630,53 @@ class GrpViewer:
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         self.canvas.bind("<MouseWheel>", lambda e: self.canvas.yview_scroll(int(-1*(e.delta/120)), "units"))
+        self.canvas.bind("<Button-1>", self.on_canvas_click)
+        self.canvas.bind("<Motion>", self.on_canvas_motion)
+
+        self._build_panel_ui(body)
+
+    def _build_panel_ui(self, parent):
+        panel = tk.Frame(parent, bg=BG_COLOR, width=330)
+        panel.pack(side=tk.RIGHT, fill=tk.Y)
+        panel.pack_propagate(False)
+
+        tk.Label(panel, text="BRICK CANDIDATES", bg=BG_COLOR, fg=FG_COLOR,
+                 font=("Courier", 10, "bold")).pack(side=tk.TOP, fill=tk.X, padx=6, pady=(6, 2))
+        tk.Label(panel, text="Click a pose body to load a 3x image\n(48px per brick). Ctrl+click candidates\nto average, then press Average.",
+                 bg=BG_COLOR, fg="#8888aa", font=("Courier", 8),
+                 justify="left").pack(side=tk.TOP, fill=tk.X, padx=6, pady=(0, 4))
+        tk.Button(panel, text="Average selected", command=self.average_selected,
+                  font=("Courier", 9)).pack(side=tk.TOP, fill=tk.X, padx=6, pady=(0, 4))
+
+        outer = tk.Frame(panel, bg=BG_COLOR)
+        outer.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+        cand_canvas = tk.Canvas(outer, bg=BG_COLOR, highlightthickness=0)
+        v_scroll = tk.Scrollbar(outer, orient=tk.VERTICAL, command=cand_canvas.yview)
+        cand_canvas.configure(yscrollcommand=v_scroll.set)
+        v_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        cand_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        cand_inner = tk.Frame(cand_canvas, bg=BG_COLOR)
+        cand_canvas.create_window((0, 0), window=cand_inner, anchor="nw")
+        cand_inner.bind("<Configure>",
+                        lambda e: cand_canvas.configure(scrollregion=cand_canvas.bbox("all")))
+
+        def on_wheel(event):
+            if event.num == 4:
+                cand_canvas.yview_scroll(-3, "units")
+            elif event.num == 5:
+                cand_canvas.yview_scroll(3, "units")
+            else:
+                cand_canvas.yview_scroll(-1 * (event.delta // 120), "units")
+
+        for widget in (cand_canvas, cand_inner):
+            widget.bind("<MouseWheel>", on_wheel)
+            widget.bind("<Button-4>", on_wheel)
+            widget.bind("<Button-5>", on_wheel)
+
+        self.cand_canvas = cand_canvas
+        self.cand_inner = cand_inner
 
     def on_open_click(self):
         path = filedialog.askopenfilename(filetypes=[("Zeliard GRP", "*.grp"), ("All Files", "*.*")])
@@ -3516,11 +3709,26 @@ class GrpViewer:
         modes     = desc[1] if desc else [1]
         overrides = desc[2] if desc and len(desc) > 2 else {}
 
+        self.current_grp_path = path
+        self.candidates = {}
+        self.selections = {}
+        self.avg_row = None
+        self.avg_group = set()
+        self.dirty = False
+        self._load_selections()
+
         self.render(unpacked, modes, filename, overrides)
 
     def render(self, data, modes, filename, overrides):
         self.last_render = (data, modes, filename, overrides)
         self.canvas.delete("all")
+        setattr(self.canvas, "current_pose", None)
+        setattr(self.canvas, "brick_pose_regions", [])
+        setattr(self.canvas, "brick_photo_refs", [])
+        setattr(self.canvas, "brick_candidates", self.candidates)
+        setattr(self.canvas, "brick_selections", self.selections)
+        setattr(self.canvas, "brick_registry", None)
+        setattr(self.canvas, "brick_tiles_raw", None)
         y_cursor = 10
         show_tiles = self.show_tiles_var.get()
 
@@ -3540,7 +3748,8 @@ class GrpViewer:
                 self.info_label.config(text=f"File: {filename} | Pollo Sprites")
             elif modes == 16:
                 consumed = render_zela_group(data, self.canvas, y_cursor,
-                                              layout=ZELA_FRAMES, show_tiles=show_tiles)
+                                              layout=ZELA_FRAMES, show_tiles=show_tiles,
+                                              label="agar")
                 self.canvas.config(scrollregion=(0, 0, 1200, y_cursor + consumed + 40))
                 self.info_label.config(text=f"File: {filename} | Agar Sprites")
             elif modes == 17:
@@ -3557,7 +3766,8 @@ class GrpViewer:
                 self.info_label.config(text=f"File: {filename} | Dragon Sprites")
             elif modes == 20:
                 consumed = render_zela_group(data, self.canvas, y_cursor,
-                                              layout=ZELA2_FRAMES, show_tiles=show_tiles)
+                                              layout=ZELA2_FRAMES, show_tiles=show_tiles,
+                                              label="paguro")
                 self.canvas.config(scrollregion=(0, 0, 1200, y_cursor + consumed + 40))
                 self.info_label.config(text=f"File: {filename} | Paguro Sprites")
             elif modes == 21:
@@ -3574,7 +3784,289 @@ class GrpViewer:
                 self.info_label.config(text=f"File: {filename} | Jashiin2 Sprites")
             else:
                 return
+            self._build_candidates_panel()
             return
+
+    def _hit_pose(self, cx, cy):
+        regions = getattr(self.canvas, "brick_pose_regions", None)
+        if not regions:
+            return None
+        for region in reversed(regions):
+            if region["x0"] <= cx <= region["x1"] and region["y0"] <= cy <= region["y1"]:
+                return region
+        return None
+
+    def on_canvas_motion(self, event):
+        cx = self.canvas.canvasx(event.x)
+        cy = self.canvas.canvasy(event.y)
+        self.canvas.config(cursor="hand2" if self._hit_pose(cx, cy) else "")
+
+    def on_canvas_click(self, event):
+        cx = self.canvas.canvasx(event.x)
+        cy = self.canvas.canvasy(event.y)
+        region = self._hit_pose(cx, cy)
+        if region is not None:
+            self.load_pose_image(region)
+
+    def load_pose_image(self, region):
+        expected_w = region["native_w"] * POSE_IMAGE_SCALE
+        expected_h = region["native_h"] * POSE_IMAGE_SCALE
+        path = filedialog.askopenfilename(
+            title=f"{region['label']}: expected {expected_w}x{expected_h}px",
+            filetypes=[("PNG image", "*.png"), ("All files", "*.*")])
+        if not path:
+            return
+        try:
+            img = Image.open(path).convert("RGBA")
+        except Exception as e:
+            messagebox.showerror("Load Error", str(e))
+            return
+        if img.size != (expected_w, expected_h):
+            messagebox.showerror(
+                "Size Mismatch",
+                f"Image for {region['label']} must be exactly {expected_w}x{expected_h} pixels\n"
+                f"({region['native_w']}x{region['native_h']} bricks at {POSE_IMAGE_SCALE}x).")
+            return
+
+        brick_px = BRICK_NATIVE * POSE_IMAGE_SCALE
+        added = 0
+        for gx, gy, brick_id in region["cells"]:
+            box = (gx * POSE_IMAGE_SCALE, gy * POSE_IMAGE_SCALE,
+                   gx * POSE_IMAGE_SCALE + brick_px, gy * POSE_IMAGE_SCALE + brick_px)
+            crop = img.crop(box)
+            cands = self.candidates.setdefault(brick_id, [])
+            if not any(c.tobytes() == crop.tobytes() for c in cands):
+                cands.append(crop)
+                added += 1
+
+        if added:
+            self.dirty = True
+        if self.last_render is not None:
+            self.render(*self.last_render)
+
+    def _build_candidates_panel(self):
+        cand_inner = self.cand_inner
+        cand_canvas = self.cand_canvas
+        if cand_inner is None or cand_canvas is None:
+            return
+        for w in cand_inner.winfo_children():
+            w.destroy()
+        self._cand_photo_refs = []
+
+        registry = getattr(self.canvas, "brick_registry", None)
+        tiles_raw = getattr(self.canvas, "brick_tiles_raw", None)
+
+        shown = 0
+        if registry is not None:
+            for brick_id, frame_data in registry:
+                cands = self.candidates.get(brick_id)
+                if not cands:
+                    continue
+                shown += 1
+
+                section = tk.Frame(cand_inner, bg=BG_COLOR)
+                section.pack(fill="x", padx=4, pady=3)
+                tk.Label(section, text=f"Brick {brick_id}", bg=BG_COLOR, fg=FG_COLOR,
+                         font=("Courier", 9)).pack(anchor="w")
+
+                row = tk.Frame(section, bg=BG_COLOR)
+                row.pack(anchor="w")
+                self._add_candidate_thumb(
+                    row, brick_id, -1,
+                    brick_frame_to_pil(frame_data, tiles_raw, scale=SPRITESHEET_SCALE))
+                for i, cand in enumerate(cands):
+                    self._add_candidate_thumb(row, brick_id, i, cand)
+
+        if shown == 0:
+            tk.Label(cand_inner, text="No candidates yet.", bg=BG_COLOR,
+                     fg="#8888aa", font=("Courier", 9)).pack(anchor="w", padx=6, pady=6)
+
+        cand_inner.update_idletasks()
+        cand_canvas.configure(scrollregion=cand_canvas.bbox("all"))
+
+    def _add_candidate_thumb(self, parent, brick_id, idx, pil_img):
+        thumb = pil_img.copy()
+        thumb.thumbnail((CAND_THUMB, CAND_THUMB), Image.Resampling.NEAREST)
+        photo = ImageTk.PhotoImage(thumb)
+        self._cand_photo_refs.append(photo)
+
+        chosen = self.selections.get(brick_id, -1) == idx
+        selected = self.avg_row == brick_id and idx in self.avg_group
+        if chosen:
+            border = CHOSEN_COLOR
+        elif selected:
+            border = AVG_SELECTED_COLOR
+        else:
+            border = BG_COLOR
+        frame = tk.Frame(parent, bg=BG_COLOR, relief="flat",
+                         highlightthickness=2 if (chosen or selected) else 1,
+                         highlightbackground=border)
+        frame.pack(side=tk.LEFT, padx=2)
+
+        lbl = tk.Label(frame, image=photo, bg=BG_COLOR, borderwidth=0)
+        lbl.pack()
+
+        for widget in (frame, lbl):
+            widget.bind("<Button-1>", lambda e, b=brick_id, i=idx: self.select_candidate(b, i))
+            widget.bind("<Control-Button-1>",
+                        lambda e, b=brick_id, i=idx: self.toggle_avg_candidate(b, i))
+
+    def select_candidate(self, brick_id, idx):
+        changed = False
+        if self.avg_row is not None and self.avg_row != brick_id:
+            self.avg_row = None
+            self.avg_group = set()
+            changed = True
+        if self.selections.get(brick_id, -1) != idx:
+            if idx < 0:
+                self.selections.pop(brick_id, None)
+            else:
+                self.selections[brick_id] = idx
+            self.dirty = True
+            changed = True
+        if changed and self.last_render is not None:
+            self.render(*self.last_render)
+
+    def toggle_avg_candidate(self, brick_id, idx):
+        if self.avg_row != brick_id:
+            self.avg_row = brick_id
+            self.avg_group = set()
+        if idx in self.avg_group:
+            self.avg_group.discard(idx)
+        else:
+            self.avg_group.add(idx)
+        if self.last_render is not None:
+            self.render(*self.last_render)
+
+    def average_selected(self):
+        if self.avg_row is None or len(self.avg_group) < 2:
+            messagebox.showinfo("Average", "Ctrl+click two or more candidates in one row first.")
+            return
+
+        brick_id = self.avg_row
+        registry = getattr(self.canvas, "brick_registry", None)
+        tiles_raw = getattr(self.canvas, "brick_tiles_raw", None)
+        if registry is None or tiles_raw is None:
+            return
+
+        frame_data = None
+        for bid, fd in registry:
+            if bid == brick_id:
+                frame_data = fd
+                break
+        if frame_data is None:
+            return
+
+        cands = self.candidates.get(brick_id, [])
+        images = []
+        for idx in sorted(self.avg_group):
+            if idx < 0:
+                images.append(brick_frame_to_pil(frame_data, tiles_raw, scale=SPRITESHEET_SCALE))
+            elif 0 <= idx < len(cands):
+                images.append(cands[idx].convert("RGBA"))
+        if len(images) < 2:
+            messagebox.showinfo("Average", "Not enough valid candidates to average.")
+            return
+
+        width, height = images[0].size
+        normalised = []
+        for im in images:
+            if im.size != (width, height):
+                im = im.resize((width, height), Image.Resampling.NEAREST)
+            normalised.append(im)
+
+        acc = normalised[0]
+        for n, im in enumerate(normalised[1:], start=2):
+            acc = Image.blend(acc, im, 1.0 / n)
+
+        self.candidates.setdefault(brick_id, []).append(acc)
+        self.dirty = True
+        if self.last_render is not None:
+            self.render(*self.last_render)
+
+    def save_spritesheet(self):
+        registry = getattr(self.canvas, "brick_registry", None)
+        tiles_raw = getattr(self.canvas, "brick_tiles_raw", None)
+        if registry is None or tiles_raw is None or len(registry) == 0:
+            messagebox.showwarning("Warning", "Load a .grp file first.")
+            return
+
+        cols = SPRITESHEET_COLS
+        cell = BRICK_NATIVE * SPRITESHEET_SCALE
+        rows = (len(registry) + cols - 1) // cols
+        sheet = Image.new("RGBA", (cols * cell, rows * cell))
+
+        for brick_id, frame_data in registry:
+            idx = self.selections.get(brick_id)
+            cands = self.candidates.get(brick_id)
+            if idx is not None and cands and 0 <= idx < len(cands):
+                img = cands[idx].convert("RGBA").resize((cell, cell), Image.Resampling.NEAREST)
+            else:
+                img = brick_frame_to_pil(frame_data, tiles_raw, scale=SPRITESHEET_SCALE)
+            r, c = divmod(brick_id, cols)
+            sheet.paste(img, (c * cell, r * cell))
+
+        base = os.path.splitext(os.path.basename(self.current_grp_path))[0] \
+            if self.current_grp_path else "boss"
+        path = filedialog.asksaveasfilename(
+            defaultextension=".png",
+            filetypes=[("PNG image", "*.png")],
+            initialfile=f"{base}_bricks.png")
+        if not path:
+            return
+        try:
+            sheet.save(path)
+        except Exception as e:
+            messagebox.showerror("Save Error", str(e))
+            return
+        messagebox.showinfo("Saved", f"Brick spritesheet saved ({cols}x{rows} cells, {cell}px):\n{path}")
+
+    def _selections_path(self):
+        if not self.current_grp_path:
+            return None
+        return self.current_grp_path + ".bricks.json"
+
+    def _load_selections(self):
+        grp_path = self.current_grp_path
+        path = self._selections_path()
+        if not grp_path or not path or not os.path.exists(path):
+            return
+        try:
+            with open(path, "r") as f:
+                data = json.load(f)
+            if data.get("grp_file") != os.path.basename(grp_path):
+                return
+            self.selections = {int(k): int(v) for k, v in data.get("selections", {}).items()}
+            self.dirty = False
+        except Exception:
+            pass
+
+    def _save_selections(self):
+        grp_path = self.current_grp_path
+        path = self._selections_path()
+        if not grp_path or not path:
+            return
+        data = {
+            "grp_file": os.path.basename(grp_path),
+            "selections": {str(k): v for k, v in self.selections.items()},
+        }
+        try:
+            with open(path, "w") as f:
+                json.dump(data, f, indent=2)
+            self.dirty = False
+        except Exception as e:
+            messagebox.showerror("Save Error", str(e))
+
+    def on_close(self):
+        if self.dirty:
+            answer = messagebox.askyesnocancel(
+                "Unsaved brick selections",
+                "You have unsaved brick selections. Save them before closing?")
+            if answer is None:
+                return
+            if answer:
+                self._save_selections()
+        self.root.destroy()
 
 if __name__ == "__main__":
     app = tk.Tk()
