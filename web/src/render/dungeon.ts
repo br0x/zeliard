@@ -629,7 +629,8 @@ export function drawDungeonEntities(): void {
         const offset = (entry[6] ?? 0) & 0x0f;
 
         currentEntityFlashFrames = entityHitFlashTimers.get(id) || 0;
-        if ((flags & 0x18) === 0 && ((entry[5] ?? 0) & 0x20)) {
+        const inBossCavern = env.dungeonState.isBossCavern;
+        if ((inBossCavern || (flags & 0x18) === 0) && ((entry[5] ?? 0) & 0x20)) {
             currentEntityFlashFrames = 6;
             entityHitFlashTimers.set(id, 6);
         }
