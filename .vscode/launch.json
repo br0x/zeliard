@@ -23,7 +23,7 @@
             "request": "launch",
             "program": "${file}",
             "args": [
-                "${workspaceFolder}/WORK/game/0/crab.grp"
+                "${workspaceFolder}/WORK/game/0/tori.grp"
             ],
             "console": "integratedTerminal",
         },

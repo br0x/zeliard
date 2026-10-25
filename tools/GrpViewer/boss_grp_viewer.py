@@ -1947,10 +1947,10 @@ def render_tako_group(data, canvas, y_offset, show_tiles=False):
     # -----------------------------------------------------------------------
     # Part 1: Render Composite Tako Body (32 tentacle_anim_step / phase combos)
     # -----------------------------------------------------------------------
-    body_scale = 2  # the 7x8-tile grid is much larger than crab's, scale down to fit
+    body_scale = 3  # the 7x8-tile grid is much larger than crab's, scale down to fit
     cols, rows = 7, 3
     block_w, block_h = cols * 16 * body_scale, rows * 16 * body_scale
-    phases_per_row = 8  # table_idx 0-7/8-15/16-23/24-31 = the 4 anim_group_offset steps
+    phases_per_row = 4  # table_idx 0-7/8-15/16-23/24-31 = the 4 anim_group_offset steps
     body_gap_x, body_gap_y = 4, 8
 
     for table_idx in range(32):
