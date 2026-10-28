@@ -1489,13 +1489,16 @@ def draw_brick(canvas, frame_data, tiles_raw, x, y, scale, registry, show_tiles=
     return brick_id
 
 
-def begin_pose(canvas, x_base, y_base, scale, label):
+def begin_pose(canvas, x_base, y_base, scale, label,
+               block_native_w=None, block_native_h=None):
     canvas.current_pose = {
         "x_base": x_base,
         "y_base": y_base,
         "scale": scale,
         "label": label,
         "items": [],
+        "block_native_w": block_native_w,
+        "block_native_h": block_native_h,
     }
 
 
@@ -1505,8 +1508,14 @@ def end_pose(canvas):
     if not pose or not pose["items"]:
         return
 
-    native_w = int(max(gx for gx, _, _ in pose["items"])) + BRICK_NATIVE
-    native_h = int(max(gy for _, gy, _ in pose["items"])) + BRICK_NATIVE
+    native_w = pose.get("block_native_w")
+    if native_w is None:
+        native_w = int(max(gx for gx, _, _ in pose["items"])) + BRICK_NATIVE
+
+    native_h = pose.get("block_native_h")
+    if native_h is None:
+        native_h = int(max(gy for _, gy, _ in pose["items"])) + BRICK_NATIVE
+
     scale = pose["scale"]
 
     canvas.brick_pose_regions.append({
@@ -1713,7 +1722,7 @@ def render_crab_group(data, canvas, y_offset, show_tiles=False):
         canvas.create_rectangle(x_base-1, y_base-1, x_base + 5*16*scale, y_base + 3*16*scale, outline="gray")
 
         layout = body_layout08 if phase < 9 else body_layout9
-        begin_pose(canvas, x_base, y_base, scale, f"crab phase {phase}")
+        begin_pose(canvas, x_base, y_base, scale, f"crab phase {phase}", 80, 48)
         for name, gx, gy in layout:
             draw_brick(
                 canvas, CRAB_FRAMES[name][phase], tiles_raw,
@@ -1860,7 +1869,7 @@ def render_drgn_group(data, canvas, y_offset, show_tiles=False):
         if breath_frame is not None:
             placements += compute_drgn_breath_layout(pose, breath_frame)
 
-        begin_pose(canvas, x_base, y_base, body_scale, f"dragon {frame_label}")
+        begin_pose(canvas, x_base, y_base, body_scale, f"dragon {frame_label}", 240, 104)
         for gcol, grow, tile_group, frame_idx in placements:
             set_name = DRGN_FRAME_SET_BY_INDEX.get(tile_group)
             if set_name is None:
@@ -1961,7 +1970,7 @@ def render_tako_group(data, canvas, y_offset, show_tiles=False):
 
         canvas.create_rectangle(x_base - 1, y_base - 1, x_base + block_w, y_base + block_h, outline="gray")
 
-        begin_pose(canvas, x_base, y_base, body_scale, f"tako tentacle {table_idx}")
+        begin_pose(canvas, x_base, y_base, body_scale, f"tako tentacle {table_idx}", 112, 48)
         for gcol, grow, tile_group, anim_idx in compute_tako_phase_layout(table_idx):
             set_name = TAKO_FRAME_SET_BY_INDEX.get(tile_group)
             if set_name is None:
@@ -2083,7 +2092,6 @@ def render_tori_group(data, canvas, y_offset, show_tiles=False):
     Part 2 lists every unique 2x2 brick used to compose those bodies.
     """
     TILE_SIZE = 32
-    scale = 3
     current_y = y_offset
 
     tiles_raw = data + b'\x00' * (256 * TILE_SIZE)
@@ -2094,14 +2102,14 @@ def render_tori_group(data, canvas, y_offset, show_tiles=False):
     # -----------------------------------------------------------------------
     # Part 1: Render Composite Tori Body (named states from TORI_BODY_FRAMES)
     # -----------------------------------------------------------------------
-    body_scale = 2  # the 9x8-tile grid is much larger than crab's, scale down to fit
+    body_scale = 3  # the 9x8-tile grid is much larger than crab's, scale down to fit
     cols, rows = 9, 8
     step = 8
     sprite_span = 16  # composed frame's own width/height
     block_w = (cols - 1) * step * body_scale + sprite_span * body_scale
     block_h = (rows - 1) * step * body_scale + sprite_span * body_scale
     frames_per_row_body = 5
-    body_gap_x, body_gap_y = 12, 16
+    body_gap_x, body_gap_y = 12, 15
 
     for f_idx, (frame_label, pose_indices) in enumerate(TORI_BODY_FRAMES):
         col_idx = f_idx % frames_per_row_body
@@ -2111,7 +2119,7 @@ def render_tori_group(data, canvas, y_offset, show_tiles=False):
 
         canvas.create_rectangle(x_base - 1, y_base - 1, x_base + block_w, y_base + block_h, outline="gray")
 
-        begin_pose(canvas, x_base, y_base, body_scale, f"tori {frame_label}")
+        begin_pose(canvas, x_base, y_base, body_scale, f"tori {frame_label}", 80, 72)
         for gcol, grow, table_index, row_index in compose_tori_frame(pose_indices):
             set_name = TORI_FRAME_SET_BY_INDEX.get(table_index)
             if set_name is None:
@@ -2400,7 +2408,7 @@ def render_zela_group(data, canvas, y_offset, layout, show_tiles=False, label="z
 
         canvas.create_rectangle(x_base - 1, y_base - 1, x_base + block_w, y_base + block_h, outline="gray")
 
-        begin_pose(canvas, x_base, y_base, scale, f"{label} phase {phase}")
+        begin_pose(canvas, x_base, y_base, scale, f"{label} phase {phase}", 64, 48)
         for gcol, grow, tile_group, frame_idx in compute_zela_body_layout(phase):
             set_name = ZELA_FRAME_SET_BY_INDEX.get(tile_group)
             if set_name is None:
@@ -2678,7 +2686,7 @@ def render_meda_group(data, canvas, y_offset, show_tiles=False):
 
         canvas.create_rectangle(x_base - 1, y_base - 1, x_base + block_w, y_base + block_h, outline="gray")
 
-        begin_pose(canvas, x_base, y_base, body_scale, f"meda {frame_label}")
+        begin_pose(canvas, x_base, y_base, body_scale, f"meda {frame_label}", 120, 104)
         for gcol, grow, tile_group, anim_idx in compute_meda_body_layout(dz, wf):
             set_name = MEDA_FRAME_SET_BY_INDEX.get(tile_group)
             if set_name is None:
@@ -2753,7 +2761,7 @@ def render_lega_group(data, canvas, y_offset, show_tiles=False):
             outline="gray"
         )
 
-        begin_pose(canvas, x_base, y_base, body_scale, f"lega {frame_label}")
+        begin_pose(canvas, x_base, y_base, body_scale, f"lega {frame_label}", 72, 88)
         for gcol, grow, tile_group, frame_idx in compute_lega_phase_layout(table_idx, head_anim):
             set_name = LEGA_FRAME_SET_BY_INDEX.get(tile_group)
             if set_name is None:
@@ -3087,7 +3095,7 @@ def render_akma_group(data, canvas, y_offset, show_tiles=False):
 
         canvas.create_rectangle(x_base - 1, y_base - 1, x_base + block_w, y_base + block_h, outline="gray")
 
-        begin_pose(canvas, x_base, y_base, body_scale, f"akma phase {phase} pose {pose_idx}")
+        begin_pose(canvas, x_base, y_base, body_scale, f"akma phase {phase} pose {pose_idx}", 112, 136)
         for gcol, grow, tile_group, anim_idx in compute_akma_body_layout(phase, pose_idx):
             set_name = AKMA_FRAME_SET_BY_INDEX.get(phase, {}).get(tile_group)
             if set_name is None:
@@ -3315,7 +3323,7 @@ def render_mao1_group(data, canvas, y_offset, show_tiles=False):
         canvas.create_text(x_base + 4, y_base - 10, text=f"pose {pose_idx}",
                             anchor="nw", fill="white", font=("TkDefaultFont", 7))
 
-        begin_pose(canvas, x_base, y_base, body_scale, f"mao1 pose {pose_idx}")
+        begin_pose(canvas, x_base, y_base, body_scale, f"mao1 pose {pose_idx}", 96, 128)
         for gcol, grow, tile_group, anim_idx in compute_mao1_pose_layout(pose_idx):
             set_name = MAO1_FRAME_SET_BY_INDEX.get(tile_group)
             if set_name is None:
@@ -3561,7 +3569,7 @@ def render_mao2_group(data, canvas, y_offset, show_tiles=False):
             canvas.create_text(x_base + 3, y_base - 9, text=f"anim {pose_idx}",
                                anchor="w", fill="white", font=("TkDefaultFont", 7))
 
-            begin_pose(canvas, x_base, y_base, body_scale, f"mao2 {direction_name} anim {pose_idx}")
+            begin_pose(canvas, x_base, y_base, body_scale, f"mao2 {direction_name} anim {pose_idx}", 56, 80)
             for gcol, grow, tile_group, anim_idx in compute_mao2_pose_layout(pose_idx, direction):
                 set_name = MAO2_FRAME_SET_BY_DIRECTION[direction].get(tile_group)
                 if set_name is None:
