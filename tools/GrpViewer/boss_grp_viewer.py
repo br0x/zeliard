@@ -2398,7 +2398,7 @@ def render_zela_group(data, canvas, y_offset, layout, show_tiles=False, label="z
     cols, rows = 4, 3
     block_w, block_h = cols * 16 * scale, rows * 16 * scale
     phases_per_row = 4
-    body_gap_x, body_gap_y = 24, 32
+    body_gap_x, body_gap_y = 24, 24
 
     for phase in range(8):
         col_idx = phase % phases_per_row
