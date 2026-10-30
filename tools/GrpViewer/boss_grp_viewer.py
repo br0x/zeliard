@@ -2645,7 +2645,6 @@ def render_meda_group(data, canvas, y_offset, show_tiles=False):
     Part 2 lists every unique 2x2 brick used to compose those bodies.
     """
     TILE_SIZE = 32
-    scale = 3
     current_y = y_offset
 
     tiles_raw = data + b'\x00' * (256 * TILE_SIZE)
@@ -2656,14 +2655,14 @@ def render_meda_group(data, canvas, y_offset, show_tiles=False):
     # -----------------------------------------------------------------------
     # Part 1: Render Composite Meda Body
     # -----------------------------------------------------------------------
-    body_scale = 2
+    body_scale = 3
     step = 8
     cols, rows = 14, 12
     sprite_span = 16
     block_w = int((cols - 1) * step * body_scale + sprite_span * body_scale)
     block_h = int((rows - 1) * step * body_scale + sprite_span * body_scale)
     phases_per_row = 4
-    body_gap_x, body_gap_y = 16, 24
+    body_gap_x, body_gap_y = 12, 9
 
     poses_to_render = [
         ("dir 0: far left (wing 0)", 0, 0),
