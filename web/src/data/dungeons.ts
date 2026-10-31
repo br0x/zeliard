@@ -350,7 +350,7 @@ export const EAI4 = {
         [82], // blue_potion
         [80], // ruzeria_shoes
     ],
-    numSprites: 81,
+    numSprites: 83,
 };
 export const EAI5 = {
     left: [ // 0xA030: 32 arrays

@@ -2734,7 +2734,7 @@ def render_lega_group(data, canvas, y_offset, show_tiles=False):
     # -----------------------------------------------------------------------
     # Part 1: Render composite Lega body
     # -----------------------------------------------------------------------
-    body_scale = 2
+    body_scale = 3
     step = 8
     cols, rows = 8, 10
     sprite_span = 16
@@ -2743,7 +2743,7 @@ def render_lega_group(data, canvas, y_offset, show_tiles=False):
     block_h = int((rows - 1) * step * body_scale + sprite_span * body_scale)
 
     frames_per_row = 5
-    body_gap_x, body_gap_y = 12, 16
+    body_gap_x, body_gap_y = 12, 15
 
     for f_idx, (frame_label, table_idx, head_anim) in enumerate(LEGA_BODY_FRAMES):
         col_idx = f_idx % frames_per_row
