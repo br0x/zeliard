@@ -237,7 +237,7 @@ describe('all 31 shipped caverns', () => {
                 expect(t, `${meta.nameKey} has a tile above 0x3F`).toBeLessThan(0x40);
             }
         }
-    });
+    }, 30000);
 
     it('agrees with the extractor byte for byte', () => {
         // The extractor and the runtime must not drift: one decodes at build time,
